@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ระบบร้องเรียน</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  </head>
+  <body class="bg-gray-100 p-4">
+    <div
+      class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6"
+    >
+      <h2 class="text-2xl font-bold mb-4 text-gray-800 text-center">
+        📝 แจ้งเรื่องร้องเรียน
+      </h2>
+
+      <div
+        id="profile-box"
+        class="flex items-center space-x-4 mb-6 p-3 bg-blue-50 rounded-lg hidden"
+      >
+        <img
+          id="user-picture"
+          class="w-12 h-12 rounded-full border"
+          src=""
+          alt="Profile"
+        />
+        <div>
+          <p class="text-sm text-gray-500">ผู้แจ้งคำร้อง</p>
+          <p id="user-name" class="font-semibold text-gray-800"></p>
+        </div>
+      </div>
+
+      <form id="complaintForm" onsubmit="submitForm(event)">
+        <input type="hidden" id="lineId" name="lineId" />
+        <input type="hidden" id="senderName" name="senderName" />
+
+        <div class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2"
+            >ประเภทคำร้อง</label
+          >
+          <select
+            id="type"
+            class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          >
+            <option value="">-- เลือกประเภท --</option>
+            <option value="ไฟฟ้า/ไฟทางดับ">ไฟฟ้า / ไฟทางดับ</option>
+            <option value="ท่อระบายน้ำอุดตัน/น้ำท่วม">
+              ท่อระบายน้ำอุดตัน / น้ำท่วม
+            </option>
+            <option value="ขยะ/สิ่งปฏิกูล">ขยะ / สิ่งปฏิกูล</option>
+            <option value="ถนนชำรุด/เป็นหลุม">ถนนชำรุด / เป็นหลุม</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2"
+            >รายละเอียดเรื่องร้องเรียน</label
+          >
+          <textarea
+            id="detail"
+            rows="4"
+            class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="ระบุรายละเอียด เช่น สถานที่ข้างเคียง อาการชำรุด"
+            required
+          ></textarea>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-gray-700 text-sm font-bold mb-2"
+            >พิกัดสถานที่เกิดเหตุ</label
+          >
+          <button
+            type="button"
+            onclick="getLocation()"
+            class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg inline-flex items-center justify-center transition"
+          >
+            📍
+            <span id="locationStatus" class="ml-2"
+              >คลิกเพื่อแชร์พิกัดปัจจุบัน</span
+            >
+          </button>
+          <input type="hidden" id="lat" name="lat" />
+          <input type="hidden" id="lng" name="lng" />
+        </div>
+
+        <button
+          type="submit"
+          id="submitBtn"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition"
+          disabled
+        >
+          กำลังโหลดข้อมูลโปรไฟล์...
+        </button>
+      </form>
+    </div>
+
+    <script>
+      // 1. เริ่มต้นการทำงานของ LIFF
+      async function initLiff() {
+        try {
+          alert("test liff");
+          // เปลี่ยนเป็น LIFF ID ของคุณที่สร้างไว้ใน LINE Developers
+          await liff.init({ liffId: "2010130420-9zzNzbRh" });
+
+          if (!liff.isLoggedIn()) {
+            liff.login();
+            alert("not login");
+          } else {
+            alert("login");
+            const profile = await liff.getProfile();
+            alert("aaa");
+
+            // แสดงข้อมูลผู้ใช้บนหน้าจอ
+            document.getElementById("profile-box").classList.remove("hidden");
+            document.getElementById("user-picture").src =
+              profile.pictureUrl || "https://via.placeholder.com/150";
+            document.getElementById("user-name").innerText =
+              profile.displayName;
+
+            // บันทึกค่าลง Form ลับ
+            document.getElementById("lineId").value = profile.userId;
+            document.getElementById("senderName").value = profile.displayName;
+
+            // เปิดให้กดปุ่มส่งข้อมูลได้
+            const submitBtn = document.getElementById("submitBtn");
+            submitBtn.innerText = "ส่งเรื่องร้องเรียน";
+            submitBtn.disabled = false;
+          }
+        } catch (error) {
+          console.error("LIFF Initialization failed", error);
+          alert("ไม่สามารถเชื่อมต่อกับ LINE ได้ กรุณาเปิดในแอป LINE");
+        }
+      }
+
+      // 2. ฟังก์ชันดึงพิกัด GPS ของมือถือ
+      function getLocation() {
+        const statusText = document.getElementById("locationStatus");
+        if (navigator.geolocation) {
+          statusText.innerText = "กำลังค้นหาสัญญาณพิกัด...";
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              document.getElementById("lat").value = position.coords.latitude;
+              document.getElementById("lng").value = position.coords.longitude;
+              statusText.innerText = `ปักหมุดสำเร็จ! (${position.coords.latitude.toFixed(
+                4
+              )}, ${position.coords.longitude.toFixed(4)})`;
+            },
+            (error) => {
+              statusText.innerText = "ไม่สามารถเข้าถึงพิกัดได้ กรุณาเปิด GPS";
+              alert("กรุณาอนุญาตสิทธิ์เข้าถึงตำแหน่งที่ตั้ง (Location)");
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+          );
+        } else {
+          statusText.innerText = "เบราว์เซอร์ไม่รองรับการระบุพิกัด";
+        }
+      }
+
+      // 3. ฟังก์ชันส่งข้อมูลไปยัง Google Apps Script หลังบ้าน
+      // แก้ไขเฉพาะฟังก์ชัน submitForm ในหน้า HTML ของคุณ
+      function submitForm(event) {
+        event.preventDefault();
+
+        const lat = document.getElementById("lat").value;
+        if (!lat) {
+          alert("กรุณากดปุ่มเพื่อแชร์พิกัดก่อนครับ");
+          return;
+        }
+
+        const submitBtn = document.getElementById("submitBtn");
+        submitBtn.innerText = "กำลังบันทึกข้อมูล...";
+        submitBtn.disabled = true;
+
+        const formData = {
+          lineId: document.getElementById("lineId").value,
+          name: document.getElementById("senderName").value,
+          type: document.getElementById("type").value,
+          detail: document.getElementById("detail").value,
+          lat: lat,
+          lng: document.getElementById("lng").value,
+        };
+
+        // ยิงข้อมูลตรงไปที่ Google Apps Script URL ที่เราได้มา
+        const GAS_WEBAPP_URL = "วาง_URL_EXEC_ของ_APPS_SCRIPT_ตรงนี้";
+
+        fetch(GAS_WEBAPP_URL, {
+          method: "POST",
+          body: JSON.stringify(formData),
+        })
+          .then((res) => res.json())
+          .then((response) => {
+            if (response.success) {
+              alert("ส่งข้อมูลร้องเรียนสำเร็จแล้ว!");
+              liff.closeWindow();
+            } else {
+              alert("เกิดข้อผิดพลาดจากระบบหลังบ้าน: " + response.error);
+            }
+          })
+          .catch((error) => {
+            alert("เกิดข้อผิดพลาดในการส่งข้อมูล: " + error);
+          })
+          .finally(() => {
+            submitBtn.innerText = "ส่งเรื่องร้องเรียน";
+            submitBtn.disabled = false;
+          });
+      }
+
+      // เรียกทำงานเมื่อโหลดหน้าเว็บสำเร็จ
+      window.onload = initLiff;
+    </script>
+  </body>
+</html>
