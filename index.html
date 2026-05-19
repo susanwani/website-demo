@@ -102,17 +102,13 @@
       // 1. เริ่มต้นการทำงานของ LIFF
       async function initLiff() {
         try {
-          alert("test liff");
           // เปลี่ยนเป็น LIFF ID ของคุณที่สร้างไว้ใน LINE Developers
           await liff.init({ liffId: "2010130420-9zzNzbRh" });
 
           if (!liff.isLoggedIn()) {
             liff.login();
-            alert("not login");
           } else {
-            alert("login");
             const profile = await liff.getProfile();
-            alert("aaa");
 
             // แสดงข้อมูลผู้ใช้บนหน้าจอ
             document.getElementById("profile-box").classList.remove("hidden");
